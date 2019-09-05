@@ -25,13 +25,15 @@ def main():
             embyUpdates, nextPageToken, error = getChanges(driveConfig, currentPageToken)
 
             if error:
-                print('There was an issue processing the changes... will try again')
+                print('There was an issue with the google api... will try same change set again')
             else:
                 if embyUpdates:
-                    submitMediaUpdate(embyConfig, embyUpdates)
-
-                db.saveDriveInfo(drive.driveId, nextPageToken)
-                print (f'Updated nextPageToken to {nextPageToken}')
+                    success = submitMediaUpdate(embyConfig, embyUpdates)
+                if success:
+                    db.saveDriveInfo(drive.driveId, nextPageToken)
+                    print (f'Updated nextPageToken to {nextPageToken}')
+                else:
+                    print('There was an issue with emby... will try same change set again')
 
     endTime = time.time()
     totalSecs = int(endTime - startTime)

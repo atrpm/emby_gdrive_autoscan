@@ -11,29 +11,45 @@ from functools import reduce
 import iso8601
 import db
 
-def getFile(driveService, fileId):
+def getFile(config, fileId):
     time.sleep(.350)
     file = db.getFolderName(fileId)
     if file is None:
-        file = driveService.files().get(fileId=fileId, supportsAllDrives=True, fields='name, id, parents').execute()
-    return file
+        retries = config['retries']
+        retryCount = 0
+        try:
+            driveService = build('drive', 'v3', credentials=getCreds(config))
+            file = driveService.files().get(fileId=fileId, supportsAllDrives=True, fields='name, id, parents').execute()
+            return file
+        except Exception as exc:
+            print(f'Issue while trying to retrive info for file: {fileId}. Error: {exc}')
+            if(retryCount < retries):
+                retryCount += 1
+                print(f'Trying again, retry # {retryCount}')
+                time.sleep(.500)
+                getFile(config, fileId)
+            else:
+                print(f'Unable to get file info after retries')
+                return None
+    else:
+        return file
 
-def getFoldersList(driveService, parentReferenceList, folderList):
+def getFoldersList(config, parentReferenceList, folderList):
     for parentFileId in parentReferenceList:
-        parentFile = getFile(driveService, parentFileId)
+        parentFile = getFile(config, parentFileId)
         folderList.append(parentFile.get('name'))
 
         if parentFile.get('parents'):
             parentReferenceList2 = parentFile.get('parents')
-            getFoldersList(driveService, parentReferenceList2, folderList)
+            getFoldersList(config, parentReferenceList2, folderList)
 
-def getFilePath(config, driveService, file):
+def getFilePath(config, file):
     fullFilePath = ''
 
     parentReferenceList = file.get('parents')
     folderList = []
 
-    getFoldersList(driveService, parentReferenceList, folderList)
+    getFoldersList(config, parentReferenceList, folderList)
     folderList.reverse()
 
     pathList = []
@@ -59,7 +75,7 @@ def getFilePath(config, driveService, file):
 
     return fullFilePath
 
-def getEmbyChange(config, change, creds):
+def getEmbyChange(config, change):
     # Process change
     filePath = None
     file = change.get('file')
@@ -72,8 +88,7 @@ def getEmbyChange(config, change, creds):
             db.saveFolderInfo(folderInfo)
             return None
         else:
-            driveService = driveService = build('drive', 'v3', credentials=creds)
-            filePath = getFilePath(config, driveService, file)
+            filePath = getFilePath(config, file)
 
     #Create emby change for file
     fileChange = {}
@@ -83,11 +98,11 @@ def getEmbyChange(config, change, creds):
     
     return db.saveFileChange(fileChange)
 
-def getEmbyChanges(config, creds, validChanges):
+def getEmbyChanges(config, validChanges):
     embyChanges = []
     error = False
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        futureToEmbyChange = {executor.submit(getEmbyChange, config, change, creds): change for change in validChanges}
+        futureToEmbyChange = {executor.submit(getEmbyChange, config, change): change for change in validChanges}
         for future in concurrent.futures.as_completed(futureToEmbyChange):
             embyChange = futureToEmbyChange[future]
             try:
@@ -121,49 +136,71 @@ def getCreds(config):
     
     return creds
 
+def getChangesFromDrive(config, currentPageToken):
+    driveService = build('drive', 'v3', credentials=getCreds(config))
+    driveId = config['driveId']
+
+    retries = config['retries']
+    retryCount = 0
+    try:
+        response = driveService.changes().list(pageToken=currentPageToken, spaces='drive', 
+            driveId = driveId, includeItemsFromAllDrives=config['includeItemsFromAllDrives'], 
+            supportsAllDrives=config['supportsAllDrives'], includeRemoved=config['includeRemoved'], 
+            fields='changes(removed, fileId, file(name, parents, mimeType), time), nextPageToken, newStartPageToken', 
+            pageSize=config['pageSize']).execute()
+        return response
+    except Exception as exc:
+        print(f'Issue while trying to retrive changes for drive: {driveId}. Error: {exc}')
+        if(retryCount < retries):
+            retryCount += 1
+            print(f'Trying again, retry # {retryCount}')
+            time.sleep(.500)
+            getChangesFromDrive(config, currentPageToken)
+        else:
+            print(f'Unable to get changes after retries')
+            return None
+
+
 
 def getChanges(config, currentPageToken):
-    creds = getCreds(config)
-    driveService = build('drive', 'v3', credentials=creds)
-    response = driveService.changes().getStartPageToken().execute()
 
     if currentPageToken is None:
-        currentPageToken = response.get('startPageToken')
+        driveService = build('drive', 'v3', credentials=getCreds(config))
+        currentPageToken = driveService.changes().getStartPageToken().execute().get('startPageToken')
     print (f'Current token: {currentPageToken}')
 
-    response = driveService.changes().list(pageToken=currentPageToken, spaces='drive', 
-        driveId = config['driveId'], includeItemsFromAllDrives=config['includeItemsFromAllDrives'], 
-        supportsAllDrives=config['supportsAllDrives'], includeRemoved=config['includeRemoved'], 
-        fields='changes(removed, fileId, file(name, parents, mimeType), time), nextPageToken, newStartPageToken', 
-        pageSize=config['pageSize']).execute()
+    response = getChangesFromDrive(config, currentPageToken)
 
     changes = response.get('changes')
-    if response.get('nextPageToken'):
-        nextPageToken = response.get('nextPageToken')
+    if response:
+        if response.get('nextPageToken'):
+            nextPageToken = response.get('nextPageToken')
+        else:
+            nextPageToken = response.get('newStartPageToken')
+
+        #filter changes by date
+        startDate = iso8601.parse_date(config['changesStartDate'])
+        validChanges = []
+        for change in changes:
+            if change.get('time'):
+                changeDate = iso8601.parse_date(change.get('time'))
+                if startDate < changeDate:
+                    validChanges.append(change)
+        
+        if len(changes) == 0:
+            print('No changes found.')
+            return None, nextPageToken, False
+        
+        if len(validChanges) == 0:
+            print('No valid changes found.')
+            getChanges(config, currentPageToken)
+
+        print(f'Found {len(validChanges)} changes')
+        print('Getting changes details...')
+
+        embyChanges, error = getEmbyChanges(config, validChanges)
+        updates = {}
+        updates['Updates'] = embyChanges
+        return updates, nextPageToken, error
     else:
-        nextPageToken = response.get('newStartPageToken')
-
-    #filter changes by date
-    startDate = iso8601.parse_date(config['changesStartDate'])
-    validChanges = []
-    for change in changes:
-        if change.get('time'):
-            changeDate = iso8601.parse_date(change.get('time'))
-            if startDate < changeDate:
-                validChanges.append(change)
-    
-    if len(changes) == 0:
-        print('No changes found.')
-        return None, nextPageToken, False
-    
-    if len(validChanges) == 0:
-        print('No valid changes found.')
-        getChanges(config, currentPageToken)
-
-    print(f'Found {len(validChanges)} changes')
-    print('Getting changes details...')
-
-    embyChanges, error = getEmbyChanges(config, creds, validChanges)
-    updates = {}
-    updates['Updates'] = embyChanges
-    return updates, nextPageToken, error
+        return None, currentPageToken, True

@@ -22,7 +22,7 @@ This has only been tested on a Windows server.
 
 ##### TODOs:
 - [ ] Add logging
-- [ ] Improve error handling with retries
+- [x] Improve error handling with retries
 
 
 ---
@@ -80,11 +80,13 @@ Save the credentials.json file inside the emby_gdrive_autoscan directory
     - `includeRemoved: default = True` - Google API parameter
     - `physicalDriveMountLetter: default = null` - if mounted to a letter. ex. Windows X: drive
     - `mountPoint: default = null` - ex. RClone mount point of 'Media/'. null = root 
+    - `retries` - number of tries for Google drive api before giving up
 - Emby
     - `apiKey` - Emby API Key
     - `ip: default = localhost` - Emby IP
     - `port: default = 8096` - Emby Port
     - `protocol: default = http` - Emby URL protocol  
+    - `retries` - number of tries for Emby api before giving up
   
 
 

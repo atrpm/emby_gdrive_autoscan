@@ -13,13 +13,15 @@
             "supportsAllDrives": true,
             "includeRemoved": true,
             "physicalDriveMountLetter": null,
-            "mountPoint": null
+            "mountPoint": null,
+            "retries": 3
         }
     ],
     "emby" : {
         "apiKey": "Emby API here",
         "ip": "localhost",
         "port": "8096",
-        "protocol": "http"
+        "protocol": "http",
+        "retries": 3
     }
 }
