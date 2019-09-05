@@ -46,11 +46,11 @@ The library uses a local DB to store important information about the drive. It s
 
 # Installation
 
-1. `mkdir emby-autoscan && cd emby-autoscan` - create directory
-2. `git clone https://github.com/atrpm/emby_gdrive_autoscan` - clone repo
+1. `git clone https://github.com/atrpm/emby_gdrive_autoscan` - clone repo 
+2. `cd emby_gdrive_autoscan` - change directory
 3. `python -m pip install -r requirements.txt` - install all requirements
 4. Go to Google developers [getting started](https://developers.google.com/drive/api/v3/quickstart/go) page and follow step 1.  
-Save the credentials.json file inside the emby-autoscan directory
+Save the credentials.json file inside the emby_gdrive_autoscan directory
 5. [Configure](#Configure) the config.json. (do this before moving on)
 6. `python scan.py` - to run the script
 7. Enjoy!
