@@ -20,6 +20,13 @@ that are detected from the Google Drive API.
 
 This has only been tested on a Windows server.
 
+##### TODOs:
+- [ ] Add logging
+- [ ] Improve error handling with retries
+
+
+---
+
 ### How it works
 
 This library relies heavily on the Google Drive API to [retrieve changes](https://developers.google.com/drive/api/v3/manage-changes). It pulls changes on an interval  
