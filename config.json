@@ -1,0 +1,25 @@
+{
+    "general": {
+        "scanIntervalMinutes": 5
+    },
+    "drives": [
+        {
+            "driveId": "insert drive id here",
+            "currentPageToken": null,
+            "pageSize": 100,
+            "changesStartDate": "2019-09-04T00:00:00",
+            "credentialsPath": "credentials.json",
+            "includeItemsFromAllDrives": true,
+            "supportsAllDrives": true,
+            "includeRemoved": true,
+            "physicalDriveMountLetter": null,
+            "mountPoint": null
+        }
+    ],
+    "emby" : {
+        "apiKey": "Emby API here",
+        "ip": "localhost",
+        "port": "8096",
+        "protocol": "http"
+    }
+}
