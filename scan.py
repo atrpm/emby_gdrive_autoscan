@@ -7,7 +7,7 @@ import db
 def main():
     scanIntervalMinutes = 5
 
-    with open('configLocal.json', 'r', encoding='utf-8') as jsonConfig:
+    with open('config.json', 'r', encoding='utf-8') as jsonConfig:
         startTime = time.time()
         configFile = json.load(jsonConfig)
         drivesConfig = configFile['drives']
