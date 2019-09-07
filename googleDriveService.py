@@ -20,7 +20,8 @@ def getFile(config, fileId):
         try:
             driveService = build('drive', 'v3', credentials=getCreds(config))
             file = driveService.files().get(fileId=fileId, supportsAllDrives=True, fields='name, id, parents').execute()
-            return file
+            if file is None:
+                raise Exception('file is None')
         except Exception as exc:
             print(f'Issue while trying to retrive info for file: {fileId}. Error: {exc}')
             if(retryCount < retries):
@@ -30,18 +31,20 @@ def getFile(config, fileId):
                 getFile(config, fileId)
             else:
                 print(f'Unable to get file info after retries')
-                return None
-    else:
-        return file
+                file = None
+    return file
 
 def getFoldersList(config, parentReferenceList, folderList):
     for parentFileId in parentReferenceList:
         parentFile = getFile(config, parentFileId)
-        folderList.append(parentFile.get('name'))
+        if parentFile:
+            folderList.append(parentFile.get('name'))
 
-        if parentFile.get('parents'):
-            parentReferenceList2 = parentFile.get('parents')
-            getFoldersList(config, parentReferenceList2, folderList)
+            if parentFile.get('parents'):
+                parentReferenceList2 = parentFile.get('parents')
+                getFoldersList(config, parentReferenceList2, folderList)
+        else:
+            raise Exception('Unable to get parent file')
 
 def getFilePath(config, file):
     fullFilePath = ''
@@ -111,7 +114,6 @@ def getEmbyChanges(config, validChanges):
             except Exception as exc:
                 print('%r generated an exception: %s' % (embyChange.get('name'), exc))
                 error = True
-                raise exc
     
     return embyChanges, error
 
