@@ -118,6 +118,8 @@ def getEmbyChanges(config, validChanges):
     return embyChanges, error
 
 def getCreds(config):
+    # If modifying these scopes, delete the file token.pickle.
+    SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
