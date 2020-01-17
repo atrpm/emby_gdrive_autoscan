@@ -3,7 +3,7 @@ import json
 import time
 
 def submitMediaUpdate(config, embyChanges):
-    embyApiBaseUrl = config['protocol'] + '://' + config['ip'] + ':' + config['port'] + '/emby/'
+    embyApiBaseUrl = config['protocol'] + '://' + config['ip'] + ':' + config['port']
     mediaUpdatePath = 'Library/Media/Updated'
     requestUrl = embyApiBaseUrl + mediaUpdatePath
     params = {'api_key' : config['apiKey']}
