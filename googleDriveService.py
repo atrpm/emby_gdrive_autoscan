@@ -11,14 +11,14 @@ from functools import reduce
 import iso8601
 import db
 
-def getFile(config, fileId):
+def getFile(config, fileId, headless):
     time.sleep(.350)
     file = db.getFolderName(fileId)
     if file is None:
         retries = config['retries']
         retryCount = 0
         try:
-            driveService = build('drive', 'v3', credentials=getCreds(config))
+            driveService = build('drive', 'v3', credentials=getCreds(config, headless))
             file = driveService.files().get(fileId=fileId, supportsAllDrives=True, fields='name, id, parents').execute()
             if file is None:
                 raise Exception('file is None')
@@ -28,31 +28,31 @@ def getFile(config, fileId):
                 retryCount += 1
                 print(f'Trying again, retry # {retryCount}')
                 time.sleep(.500)
-                getFile(config, fileId)
+                getFile(config, fileId, headless)
             else:
                 print(f'Unable to get file info after retries')
                 file = None
     return file
 
-def getFoldersList(config, parentReferenceList, folderList):
+def getFoldersList(config, parentReferenceList, folderList, headless):
     for parentFileId in parentReferenceList:
-        parentFile = getFile(config, parentFileId)
+        parentFile = getFile(config, parentFileId, headless)
         if parentFile:
             folderList.append(parentFile.get('name'))
 
             if parentFile.get('parents'):
                 parentReferenceList2 = parentFile.get('parents')
-                getFoldersList(config, parentReferenceList2, folderList)
+                getFoldersList(config, parentReferenceList2, folderList, headless)
         else:
             raise Exception('Unable to get parent file')
 
-def getFilePath(config, file):
+def getFilePath(config, file, headless):
     fullFilePath = ''
 
     parentReferenceList = file.get('parents')
     folderList = []
 
-    getFoldersList(config, parentReferenceList, folderList)
+    getFoldersList(config, parentReferenceList, folderList, headless)
     folderList.reverse()
 
     pathList = []
@@ -78,7 +78,7 @@ def getFilePath(config, file):
 
     return fullFilePath
 
-def getEmbyChange(config, change):
+def getEmbyChange(config, change, headless):
     # Process change
     filePath = None
     file = change.get('file')
@@ -91,7 +91,7 @@ def getEmbyChange(config, change):
             db.saveFolderInfo(folderInfo)
             return None
         else:
-            filePath = getFilePath(config, file)
+            filePath = getFilePath(config, file, headless)
 
     #Create emby change for file
     fileChange = {}
@@ -101,11 +101,11 @@ def getEmbyChange(config, change):
     
     return db.saveFileChange(fileChange)
 
-def getEmbyChanges(config, validChanges):
+def getEmbyChanges(config, validChanges, headless):
     embyChanges = []
     error = False
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        futureToEmbyChange = {executor.submit(getEmbyChange, config, change): change for change in validChanges}
+        futureToEmbyChange = {executor.submit(getEmbyChange, config, change, headless): change for change in validChanges}
         for future in concurrent.futures.as_completed(futureToEmbyChange):
             embyChange = futureToEmbyChange[future]
             try:
@@ -117,7 +117,7 @@ def getEmbyChanges(config, validChanges):
     
     return embyChanges, error
 
-def getCreds(config):
+def getCreds(config, headless):
     # If modifying these scopes, delete the file token.pickle.
     SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
     creds = None
@@ -133,15 +133,18 @@ def getCreds(config):
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(config['credentialsPath'], SCOPES)
-            creds = flow.run_local_server(port=0)
+            if headless:
+                creds = flow.run_console()
+            else:
+                creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
     
     return creds
 
-def getChangesFromDrive(config, currentPageToken):
-    driveService = build('drive', 'v3', credentials=getCreds(config))
+def getChangesFromDrive(config, currentPageToken, headless):
+    driveService = build('drive', 'v3', credentials=getCreds(config, headless))
     driveId = config['driveId']
 
     retries = config['retries']
@@ -159,21 +162,21 @@ def getChangesFromDrive(config, currentPageToken):
             retryCount += 1
             print(f'Trying again, retry # {retryCount}')
             time.sleep(.500)
-            getChangesFromDrive(config, currentPageToken)
+            getChangesFromDrive(config, currentPageToken, headless)
         else:
             print(f'Unable to get changes after retries')
             return None
 
 
 
-def getChanges(config, currentPageToken):
+def getChanges(config, currentPageToken, headless):
 
     if currentPageToken is None:
-        driveService = build('drive', 'v3', credentials=getCreds(config))
+        driveService = build('drive', 'v3', credentials=getCreds(config, headless))
         currentPageToken = driveService.changes().getStartPageToken().execute().get('startPageToken')
     print (f'Current token: {currentPageToken}')
 
-    response = getChangesFromDrive(config, currentPageToken)
+    response = getChangesFromDrive(config, currentPageToken, headless)
 
     changes = response.get('changes')
     if response:
@@ -197,12 +200,12 @@ def getChanges(config, currentPageToken):
         
         if len(validChanges) == 0:
             print('No valid changes found.')
-            getChanges(config, currentPageToken)
+            getChanges(config, currentPageToken, headless)
 
         print(f'Found {len(validChanges)} changes')
         print('Getting changes details...')
 
-        embyChanges, error = getEmbyChanges(config, validChanges)
+        embyChanges, error = getEmbyChanges(config, validChanges, headless)
         updates = {}
         updates['Updates'] = embyChanges
         return updates, nextPageToken, error

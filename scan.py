@@ -22,7 +22,7 @@ def main():
             if driveConfig['currentPageToken']:
                 currentPageToken = driveConfig['currentPageToken']
 
-            embyUpdates, nextPageToken, error = getChanges(driveConfig, currentPageToken)
+            embyUpdates, nextPageToken, error = getChanges(driveConfig, currentPageToken, generalConfig['headless'])
 
             if error:
                 print('There was an issue with the google api... will try same change set again')

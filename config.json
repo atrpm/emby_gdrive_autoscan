@@ -1,6 +1,7 @@
 {
     "general": {
-        "scanIntervalMinutes": 5
+        "scanIntervalMinutes": 5,
+        "headless": false
     },
     "drives": [
         {

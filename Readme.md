@@ -57,7 +57,7 @@ The library uses a local DB to store important information about the drive. It s
 2. `cd emby_gdrive_autoscan` - change directory
 3. `python -m pip install -r requirements.txt` - install all requirements
 4. Go to Google developers [getting started](https://developers.google.com/drive/api/v3/quickstart/go) page and follow step 1.  
-Save the credentials.json file inside the emby_gdrive_autoscan directory
+    Save the credentials.json file inside the emby_gdrive_autoscan directory
 5. [Configure](#Configure) the config.json. (do this before moving on)
 6. `python scan.py` - to run the script
 7. Enjoy!
@@ -66,6 +66,7 @@ Save the credentials.json file inside the emby_gdrive_autoscan directory
 
 - General
     - `scanIntervalMinutes` - how often show scans happen
+    - `headless` - authenticate from the console to support headless servers
 - Drives (supports multiple drives)
     - `driveId` - google drive Id
     - `currentPageToken: default = null` - the script will get the start page token  
