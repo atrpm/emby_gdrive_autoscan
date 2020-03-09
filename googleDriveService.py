@@ -199,8 +199,8 @@ def getChanges(config, currentPageToken, headless):
             return None, nextPageToken, False
         
         if len(validChanges) == 0:
-            print('No valid changes found.')
-            getChanges(config, currentPageToken, headless)
+            print('No valid changes found. Moving along...')
+            getChanges(config, nextPageToken, headless)
 
         print(f'Found {len(validChanges)} changes')
         print('Getting changes details...')
