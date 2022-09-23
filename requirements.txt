@@ -2,5 +2,5 @@ peewee==3.10.0
 requests==2.22.0
 iso8601==0.1.12
 google_auth_oauthlib==0.4.0
-protobuf==3.9.1
+protobuf==3.18.3
 google_api_python_client==1.7.11
